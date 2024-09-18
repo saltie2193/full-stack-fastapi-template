@@ -24,6 +24,7 @@ import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import { useCurrentUser } from "../../hooks/useCurrentUser.ts"
+import { usersKeys } from "../../queries/users.ts"
 
 const usersSearchSchema = z.object({
   page: z.number().catch(1),
@@ -40,7 +41,7 @@ function getUsersQueryOptions({ page }: { page: number }) {
   return {
     queryFn: () =>
       UsersService.readUsers({ skip: (page - 1) * PER_PAGE, limit: PER_PAGE }),
-    queryKey: ["users", { page }],
+    queryKey: usersKeys.paginated({ page }),
   }
 }
 

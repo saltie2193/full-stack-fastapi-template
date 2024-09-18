@@ -12,6 +12,7 @@ import {
 } from "../client"
 import { useCurrentUser } from "./useCurrentUser.ts"
 import useCustomToast from "./useCustomToast"
+import {usersKeys} from "../queries/users.ts";
 
 const isLoggedIn = () => {
   return localStorage.getItem("access_token") !== null
@@ -79,6 +80,7 @@ const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("access_token")
+    queryClient.invalidateQueries({ queryKey: usersKeys.current() })
     navigate({ to: "/login" })
   }
 

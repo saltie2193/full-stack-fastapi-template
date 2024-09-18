@@ -15,6 +15,7 @@ import { type ApiError, UsersService } from "../../client"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
+import { usersKeys } from "../../queries/users.ts"
 
 interface DeleteProps {
   isOpen: boolean
@@ -46,7 +47,7 @@ const DeleteConfirmation = ({ isOpen, onClose }: DeleteProps) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
+      queryClient.invalidateQueries({ queryKey: usersKeys.current() })
     },
   })
 

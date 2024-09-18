@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form"
 
 import { ItemsService, UsersService } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
+import {usersKeys} from "../../queries/users.ts";
 
 interface DeleteProps {
   type: string
@@ -59,7 +60,7 @@ const Delete = ({ type, id, isOpen, onClose }: DeleteProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: [type === "Item" ? "items" : "users"],
+        queryKey: type === "Item" ? ["items"] : usersKeys.all,
       })
     },
   })

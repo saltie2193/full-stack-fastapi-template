@@ -21,6 +21,7 @@ import { type UserCreate, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { emailPattern, handleError } from "../../utils"
+import {usersKeys} from "../../queries/users.ts";
 
 interface AddUserProps {
   isOpen: boolean
@@ -65,7 +66,7 @@ const AddUser = ({ isOpen, onClose }: AddUserProps) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
+      queryClient.invalidateQueries({ queryKey: usersKeys.all})
     },
   })
 

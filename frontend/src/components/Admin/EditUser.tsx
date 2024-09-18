@@ -25,6 +25,7 @@ import {
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { emailPattern, handleError } from "../../utils"
+import {usersKeys} from "../../queries/users.ts";
 
 interface EditUserProps {
   user: UserPublic
@@ -63,7 +64,7 @@ const EditUser = ({ user, isOpen, onClose }: EditUserProps) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
+      queryClient.invalidateQueries({ queryKey: usersKeys.all })
     },
   })
 
