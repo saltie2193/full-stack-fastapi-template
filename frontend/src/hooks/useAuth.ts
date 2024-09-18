@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
-
 import { AxiosError } from "axios"
+import { useState } from "react"
 import {
   type Body_login_login_access_token as AccessToken,
   type ApiError,
@@ -10,13 +9,10 @@ import {
   type UserRegister,
   UsersService,
 } from "../client"
+import { usersKeys } from "../queries/users.ts"
+import { isLoggedIn, updateLocalAuthState } from "../utils/auth.ts"
 import { useCurrentUser } from "./useCurrentUser.ts"
 import useCustomToast from "./useCustomToast"
-import {usersKeys} from "../queries/users.ts";
-
-const isLoggedIn = () => {
-  return localStorage.getItem("access_token") !== null
-}
 
 const useAuth = () => {
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +51,7 @@ const useAuth = () => {
     const response = await LoginService.loginAccessToken({
       formData: data,
     })
-    localStorage.setItem("access_token", response.access_token)
+    updateLocalAuthState(response.access_token)
   }
 
   const loginMutation = useMutation({
@@ -79,7 +75,7 @@ const useAuth = () => {
   })
 
   const logout = () => {
-    localStorage.removeItem("access_token")
+    updateLocalAuthState(null)
     queryClient.invalidateQueries({ queryKey: usersKeys.current() })
     navigate({ to: "/login" })
   }
@@ -95,5 +91,4 @@ const useAuth = () => {
   }
 }
 
-export { isLoggedIn }
 export default useAuth

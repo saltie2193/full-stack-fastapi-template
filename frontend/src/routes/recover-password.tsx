@@ -12,9 +12,9 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 import { type SubmitHandler, useForm } from "react-hook-form"
 
 import { type ApiError, LoginService } from "../client"
-import { isLoggedIn } from "../hooks/useAuth"
 import useCustomToast from "../hooks/useCustomToast"
 import { emailPattern, handleError } from "../utils"
+import {isLoggedIn} from "../utils/auth.ts";
 
 interface FormData {
   email: string

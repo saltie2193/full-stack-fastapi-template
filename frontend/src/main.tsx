@@ -7,10 +7,11 @@ import { routeTree } from "./routeTree.gen"
 import { StrictMode } from "react"
 import { OpenAPI } from "./client"
 import theme from "./theme"
+import { getAuthToken } from "./utils/auth.ts"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.TOKEN = async () => {
-  return localStorage.getItem("access_token") || ""
+  return getAuthToken() || ""
 }
 
 const queryClient = new QueryClient()

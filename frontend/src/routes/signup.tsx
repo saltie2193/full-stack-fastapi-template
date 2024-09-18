@@ -19,8 +19,9 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 
 import Logo from "/assets/images/fastapi-logo.svg"
 import type { UserRegister } from "../client"
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import useAuth from "../hooks/useAuth"
 import { confirmPasswordRules, emailPattern, passwordRules } from "../utils"
+import { isLoggedIn } from "../utils/auth.ts"
 
 export const Route = createFileRoute("/signup")({
   component: SignUp,
