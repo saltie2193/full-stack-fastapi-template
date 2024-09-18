@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 
@@ -7,10 +7,10 @@ import {
   type Body_login_login_access_token as AccessToken,
   type ApiError,
   LoginService,
-  type UserPublic,
   type UserRegister,
   UsersService,
 } from "../client"
+import { useCurrentUser } from "./useCurrentUser.ts"
 import useCustomToast from "./useCustomToast"
 
 const isLoggedIn = () => {
@@ -22,11 +22,7 @@ const useAuth = () => {
   const navigate = useNavigate()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
-  const { data: user, isLoading } = useQuery<UserPublic | null, Error>({
-    queryKey: ["currentUser"],
-    queryFn: UsersService.readUserMe,
-    enabled: isLoggedIn(),
-  })
+  const { user, isLoading } = useCurrentUser({ enabled: isLoggedIn() })
 
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>
