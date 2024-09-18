@@ -19,10 +19,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
-import { type UserPublic, UsersService } from "../../client"
+import { UsersService } from "../../client"
 import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
+import useAuth from "../../hooks/useAuth.ts";
 
 const usersSearchSchema = z.object({
   page: z.number().catch(1),
@@ -45,7 +46,7 @@ function getUsersQueryOptions({ page }: { page: number }) {
 
 function UsersTable() {
   const queryClient = useQueryClient()
-  const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
+  const { user: currentUser } = useAuth()
   const { page } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
