@@ -12,15 +12,14 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
-import { ItemsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import AddItem from "../../components/Items/AddItem"
+import { useItems } from "../../hooks/useItems.ts"
 
 const itemsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -33,38 +32,26 @@ export const Route = createFileRoute("/_layout/items")({
 
 const PER_PAGE = 5
 
-function getItemsQueryOptions({ page }: { page: number }) {
-  return {
-    queryFn: () =>
-      ItemsService.readItems({ skip: (page - 1) * PER_PAGE, limit: PER_PAGE }),
-    queryKey: ["items", { page }],
-  }
-}
-
 function ItemsTable() {
-  const queryClient = useQueryClient()
   const { page } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
+  const limit = PER_PAGE
 
-  const {
-    data: items,
-    isPending,
-    isPlaceholderData,
-  } = useQuery({
-    ...getItemsQueryOptions({ page }),
+  const { items, isPending, isPlaceholderData, prefetchItems } = useItems({
     placeholderData: (prevData) => prevData,
+    queryOptions: { page, limit },
   })
 
-  const hasNextPage = !isPlaceholderData && items?.data.length === PER_PAGE
+  const hasNextPage = !isPlaceholderData && (items?.count ?? 0) > page * limit
   const hasPreviousPage = page > 1
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getItemsQueryOptions({ page: page + 1 }))
+      prefetchItems({ page: page + 1, limit })
     }
-  }, [page, queryClient, hasNextPage])
+  }, [hasNextPage, page, limit, prefetchItems])
 
   return (
     <>
