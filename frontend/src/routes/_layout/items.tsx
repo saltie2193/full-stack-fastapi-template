@@ -12,7 +12,7 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
@@ -21,6 +21,7 @@ import { ItemsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import AddItem from "../../components/Items/AddItem"
+import { useCustomQuery } from "../../hooks/useCustomQuery.ts"
 
 const itemsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -52,7 +53,7 @@ function ItemsTable() {
     data: items,
     isPending,
     isPlaceholderData,
-  } = useQuery({
+  } = useCustomQuery({
     ...getItemsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })

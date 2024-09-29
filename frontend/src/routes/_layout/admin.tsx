@@ -14,16 +14,17 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
-import { UsersService } from "../../client"
 import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
-import useAuth from "../../hooks/useAuth.ts";
+import useAuth from "../../hooks/useAuth.ts"
+import { useCustomQuery } from "../../hooks/useCustomQuery.ts"
+import { UsersService } from "../../client"
 
 const usersSearchSchema = z.object({
   page: z.number().catch(1),
@@ -56,7 +57,7 @@ function UsersTable() {
     data: users,
     isPending,
     isPlaceholderData,
-  } = useQuery({
+  } = useCustomQuery({
     ...getUsersQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })

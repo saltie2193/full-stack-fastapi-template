@@ -26,6 +26,7 @@ const useAuth = () => {
     user,
     isLoading,
     error: userError,
+    remove: removeUserQuery,
   } = useCurrentUser({ enabled: isLoggedIn() })
 
   const signUpMutation = useMutation({
@@ -77,7 +78,7 @@ const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("access_token")
-    queryClient.removeQueries({ queryKey: ["currentUser"] })
+    removeUserQuery()
     router.invalidate()
   }
 

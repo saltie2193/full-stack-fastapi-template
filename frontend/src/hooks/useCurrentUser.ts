@@ -16,7 +16,7 @@ export function useCurrentUser(
   queryClient?: QueryClient,
 ) {
   const _queryClient = queryClient ?? useQueryClient()
-  const queryKey = options?.queryKey || ["currentUser"]
+  const queryKey = options?.queryKey || ["users", "current"]
   const { data: user, ...query } = useQuery<UserPublic, ApiError>(
     {
       queryKey,
@@ -34,5 +34,9 @@ export function useCurrentUser(
     return _queryClient.invalidateQueries({ queryKey })
   }
 
-  return { ...query, queryKey, user, invalidate }
+  function remove() {
+      return _queryClient.removeQueries({queryKey})
+  }
+
+  return { ...query, queryKey, user, invalidate, remove }
 }
