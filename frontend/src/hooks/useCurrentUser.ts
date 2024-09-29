@@ -22,8 +22,17 @@ export function useCurrentUser(
       queryKey,
       queryFn: UsersService.readUserMe,
       enabled: options?.enabled,
+      retry: (retryCount, error) => {
+        // don't retry if we received 401 unauthorized as response
+        return error.status === 401 ? false : retryCount <= 3
+      },
     },
     _queryClient,
   )
-  return { ...query, queryKey, user }
+
+  async function invalidate() {
+    return _queryClient.invalidateQueries({ queryKey })
+  }
+
+  return { ...query, queryKey, user, invalidate }
 }

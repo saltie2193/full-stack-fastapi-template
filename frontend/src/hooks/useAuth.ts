@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { AxiosError } from "axios"
 import {
@@ -22,7 +22,11 @@ const useAuth = () => {
   const navigate = useNavigate()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
-  const { user, isLoading } = useCurrentUser({ enabled: isLoggedIn() })
+  const {
+    user,
+    isLoading,
+    error: userError,
+  } = useCurrentUser({ enabled: isLoggedIn() })
 
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>
@@ -81,6 +85,14 @@ const useAuth = () => {
     localStorage.removeItem("access_token")
     navigate({ to: "/login" })
   }
+
+  useEffect(() => {
+    // if user request fails with 401 unauthorized, the token likely is invalid or expired.
+    // we want the user to login again
+    if (userError?.status === 401 && isLoggedIn()) {
+      logout()
+    }
+  }, [userError, logout])
 
   return {
     signUpMutation,
