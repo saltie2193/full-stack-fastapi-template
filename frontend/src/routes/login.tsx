@@ -24,13 +24,17 @@ import Logo from "/assets/images/fastapi-logo.svg"
 import type { Body_login_login_access_token as AccessToken } from "../client"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import { emailPattern } from "../utils"
+import {z} from "zod";
 
 export const Route = createFileRoute("/login")({
   component: Login,
-  beforeLoad: async () => {
+  validateSearch: z.object({
+    redirect: z.string().optional().catch(''),
+  }),
+  beforeLoad: async ({search}) => {
     if (isLoggedIn()) {
       throw redirect({
-        to: "/",
+        to: search.redirect || "/",
       })
     }
   },

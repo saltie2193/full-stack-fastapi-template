@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 
 import { AxiosError } from "axios"
@@ -19,7 +19,7 @@ const isLoggedIn = () => {
 
 const useAuth = () => {
   const [error, setError] = useState<string | null>(null)
-  const navigate = useNavigate()
+  const router = useRouter()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const {
@@ -31,9 +31,8 @@ const useAuth = () => {
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>
       UsersService.registerUser({ requestBody: data }),
-
     onSuccess: () => {
-      navigate({ to: "/login" })
+      router.navigate({ to: "/login" })
       showToast(
         "Account created.",
         "Your account has been created successfully.",
@@ -54,17 +53,12 @@ const useAuth = () => {
     },
   })
 
-  const login = async (data: AccessToken) => {
-    const response = await LoginService.loginAccessToken({
-      formData: data,
-    })
-    localStorage.setItem("access_token", response.access_token)
-  }
-
   const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: () => {
-      navigate({ to: "/" })
+    mutationFn: (formData: AccessToken) =>
+      LoginService.loginAccessToken({ formData }),
+    onSuccess: (data) => {
+      localStorage.setItem("access_token", data.access_token)
+      router.invalidate()
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -83,7 +77,8 @@ const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("access_token")
-    navigate({ to: "/login" })
+    queryClient.removeQueries({ queryKey: ["currentUser"] })
+    router.invalidate()
   }
 
   useEffect(() => {
