@@ -93,25 +93,57 @@ test("Successful log out", async ({ page }) => {
 
   await page.getByTestId("user-menu").click()
   await page.getByRole("menuitem", { name: "Log out" }).click()
-  await page.waitForURL("/login")
+  await expect(page).toHaveURL(/\/login(\?redirect=.*)?/)
 })
 
-test("Logged-out user cannot access protected routes", async ({ page }) => {
-  await page.goto("/login")
+test.describe("Logged out user cannot access protected routes", async () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/login")
 
-  await fillForm(page, firstSuperuser, firstSuperuserPassword)
-  await page.getByRole("button", { name: "Log In" }).click()
+    await fillForm(page, firstSuperuser, firstSuperuserPassword)
+    await page.getByRole("button", { name: "Log In" }).click()
 
-  await page.waitForURL("/")
+    await page.waitForURL("/")
 
-  await expect(
-    page.getByText("Welcome back, nice to see you again!"),
-  ).toBeVisible()
+    await expect(
+      page.getByText("Welcome back, nice to see you again!"),
+    ).toBeVisible()
 
-  await page.getByTestId("user-menu").click()
-  await page.getByRole("menuitem", { name: "Log out" }).click()
-  await page.waitForURL("/login")
+    await page.getByTestId("user-menu").click()
+    await page.getByRole("menuitem", { name: "Log out" }).click()
+    await page.waitForURL(/\/login(\?redirect=.*)?/)
+  })
 
-  await page.goto("/settings")
-  await page.waitForURL("/login")
+  for (const { path } of [
+    { path: "/" },
+    { path: "/settings" },
+    { path: "/items" },
+    { path: "/admin" },
+  ]) {
+    test(path, async ({ page }) => {
+      await page.goto(path)
+      await expect(page).toHaveURL(
+        `/login?redirect=${encodeURIComponent(path)}`,
+      )
+    })
+  }
+})
+
+test.describe("Protected routes redirect to login", () => {
+  for (const { path } of [
+    { path: "/" },
+    { path: "/settings" },
+    { path: "/items" },
+    { path: "/admin" },
+  ]) {
+    test(`Test login redirect from ${path}`, async ({ page }) => {
+      await page.goto(path)
+      await page.waitForURL(`/login?redirect=${encodeURIComponent(path)}`)
+
+      await fillForm(page, firstSuperuser, firstSuperuserPassword)
+      await page.getByRole("button", { name: "Log In" }).click()
+
+      await expect(page).toHaveURL(path)
+    })
+  }
 })
