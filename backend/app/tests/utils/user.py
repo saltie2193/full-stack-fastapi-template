@@ -121,7 +121,7 @@ def create_user_context(db: Session) -> Generator[CreateUserProtocol, None, None
 
     yield factory
     # cleanup
-    stmt = delete(User).where(User.id.in_(u.id for u in created))
+    stmt = delete(User).where(User.id.in_(u.id for u in created))  # type: ignore[attr-defined]
     db.execute(stmt)
 
 
