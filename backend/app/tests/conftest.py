@@ -1,4 +1,6 @@
-from collections.abc import Generator
+import uuid
+from collections.abc import Generator, Iterable, Sequence
+from typing import Protocol
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +9,7 @@ from sqlmodel import Session, delete
 from app.core.db import engine
 from app.main import app
 from app.models import Item, User
+from app.tests.utils.item import create_random_item
 from app.tests.utils.user import (
     CreateUserProtocol,
     create_user_context,
@@ -81,3 +84,104 @@ def normal_user_token_headers(
     return user_authentication_headers(
         client=client, email=user.email, password=password
     )
+
+
+class CreateItemProtocol(Protocol):
+    def __call__(
+        self,
+        title: str | None = ...,
+        description: str | None = ...,
+        user: User | uuid.UUID | None = ...,
+        *,
+        cleanup: bool = True,
+        commit: bool = True,
+    ) -> Item:
+        ...
+
+
+@pytest.fixture(scope="function")
+def create_item(
+    db: Session, create_user: CreateUserProtocol
+) -> Generator[CreateItemProtocol, None, None]:
+    """Returns factory to create function scoped items.
+
+    Factory will create random users with the same scope if they are not provided.
+    Passwords of created users will NOT be hashed. Thus authenticating as them is not directly possible.
+    """
+    created: list[Item] = []
+
+    def factory(
+        title: str | None = None,
+        description: str | None = None,
+        user: User | uuid.UUID | None = None,
+        *,
+        cleanup: bool = True,
+        commit: bool = True,
+    ) -> Item:
+        """Create a function scoped random item, with the provided overrides.
+
+        If a user is not provided a random function scoped user will be created.
+        """
+        if user is None:
+            user = create_user(hash_password=False)
+        item = create_random_item(
+            db=db, title=title, description=description, user=user, commit=commit
+        )
+        if cleanup:
+            created.append(item)
+        return item
+
+    yield factory
+
+
+class CreateItemsProtocol(Protocol):
+    def __call__(
+        self,
+        count: int,
+        user: User | uuid.UUID | None = ...,
+        users: Iterable[User | uuid.UUID | None] | None = ...,
+        *,
+        commit: bool = ...,
+        cleanup: bool = ...,
+    ) -> Sequence[Item]:
+        ...
+
+
+@pytest.fixture(scope="function")
+def create_items(db: Session, create_item: CreateItemProtocol) -> CreateItemsProtocol:
+    """Get factory to create items in bulck
+
+    Factory will create the given number of items per specified user.
+    Providing ``count=5`` and a total number of 4 users will create 20 itmes in total.
+    Users can either be provided via ``user`` or ``users``. If both are provided, the ``user`` will be added to ``users``.
+    If a user is present multiple times he will process multiple times.
+    If no user is provided, the items will be created using random new users with the same scope.
+    Providing ``None`` in ``users`` will result in creation of a random user.
+    """
+
+    def factory(
+        count: int,
+        user: User | uuid.UUID | None = None,
+        users: Iterable[User | uuid.UUID | None] | None = None,
+        *,
+        commit: bool = True,
+        cleanup: bool = True,
+    ) -> Sequence[Item]:
+        if users is None:
+            users = ()
+        _users = (user, *users)
+
+        items: list[Item] = []
+        for _ in range(count):
+            items.extend(
+                create_item(user=_user, commit=False, cleanup=cleanup)
+                for _user in _users
+            )
+        if commit:
+            db.commit()
+            for item in items:
+                db.refresh(item)
+
+        return items
+
+    return factory
