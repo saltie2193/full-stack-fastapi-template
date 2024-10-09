@@ -1,6 +1,7 @@
 import uuid
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
@@ -12,36 +13,25 @@ from app.tests.utils.user import CreateUserProtocol, user_authentication_headers
 from app.tests.utils.utils import random_email, random_lower_string
 
 
-def test_get_users_superuser_me(
-    client: TestClient, create_user: CreateUserProtocol
+@pytest.mark.parametrize(
+    "is_superuser",
+    (True, False),
+    ids=lambda x: "superuser" if x else "normal user",
+)
+def test_get_users_me(
+    client: TestClient, create_user: CreateUserProtocol, is_superuser: bool
 ) -> None:
     password = random_lower_string()
-    user = create_user(is_superuser=True, password=password)
+    user = create_user(is_superuser=is_superuser, password=password)
     auth_headers = user_authentication_headers(
         client=client, email=user.email, password=password
     )
     r = client.get(f"{settings.API_V1_STR}/users/me", headers=auth_headers)
-    current_user = r.json()
-    assert current_user
-    assert current_user["is_active"] is True
-    assert current_user["is_superuser"] is True
-    assert current_user["email"] == user.email
-
-
-def test_get_users_normal_user_me(
-    client: TestClient, create_user: CreateUserProtocol
-) -> None:
-    password = random_lower_string()
-    user = create_user(is_superuser=False, password=password)
-    auth_headers = user_authentication_headers(
-        client=client, email=user.email, password=password
-    )
-    r = client.get(f"{settings.API_V1_STR}/users/me", headers=auth_headers)
-    current_user = r.json()
-    assert current_user
-    assert current_user["is_active"] is True
-    assert current_user["is_superuser"] is False
-    assert current_user["email"] == user.email
+    api_user = r.json()
+    assert api_user
+    assert api_user["is_active"] is True
+    assert api_user["is_superuser"] is is_superuser
+    assert api_user == user.model_dump(mode="json", exclude={"hashed_password"})
 
 
 def test_create_user_new_email(
@@ -82,14 +72,19 @@ def test_get_existing_user(
     )
     assert 200 <= r.status_code < 300
     api_user = r.json()
-    assert normal_user.email == api_user["email"]
+    assert api_user == normal_user.model_dump(mode="json", exclude={"hashed_password"})
 
 
+@pytest.mark.parametrize(
+    "is_superuser",
+    (True, False),
+    ids=lambda x: "superuser" if x else "normal user",
+)
 def test_get_existing_user_current_user(
-    client: TestClient, create_user: CreateUserProtocol, db: Session
+    client: TestClient, create_user: CreateUserProtocol, is_superuser: bool
 ) -> None:
     password = random_lower_string()
-    user = create_user(password=password)
+    user = create_user(password=password, is_superuser=is_superuser)
     auth_headers = user_authentication_headers(
         client=client, email=user.email, password=password
     )
@@ -100,8 +95,7 @@ def test_get_existing_user_current_user(
     )
     assert 200 <= r.status_code < 300
     api_user = r.json()
-    db.refresh(user)
-    assert user.email == api_user["email"]
+    assert api_user == user.model_dump(mode="json", exclude={"hashed_password"})
 
 
 def test_get_existing_user_permissions_error(
@@ -130,9 +124,10 @@ def test_create_user_existing_username(
         headers=superuser_token_headers,
         json=data,
     )
-    created_user = r.json()
     assert r.status_code == 400
-    assert "_id" not in created_user
+    assert r.json() == {
+        "detail": "The user with this email already exists in the system."
+    }
 
 
 def test_create_user_by_normal_user(
@@ -147,25 +142,56 @@ def test_create_user_by_normal_user(
         json=data,
     )
     assert r.status_code == 403
+    assert r.json() == {"detail": "The user doesn't have enough privileges"}
 
 
-def test_retrieve_users(
+@pytest.mark.parametrize("user_count", (0, 1, 10))
+def test_retrieve_users_as_superuser(
+    db: Session,
     client: TestClient,
     superuser_token_headers: dict[str, str],
     create_user: CreateUserProtocol,
+    user_count: int,
 ) -> None:
-    users_count = 2
     # don't hash passwords since we don't need to authenticate as the created users
-    for _ in range(users_count):
-        create_user(hash_password=False)
+    tmp = [create_user(hash_password=False, commit=False) for _ in range(user_count)]
+    db.commit()
+    users = {
+        str(user.id): user.model_dump(mode="json", exclude={"hashed_password"})
+        for user in tmp
+    }
 
     r = client.get(f"{settings.API_V1_STR}/users/", headers=superuser_token_headers)
-    all_users = r.json()
+    api_users = r.json()
 
-    assert len(all_users["data"]) > users_count
-    assert all_users["count"] > users_count
-    for item in all_users["data"]:
-        assert "email" in item
+    assert len(api_users["data"]) == user_count + 1
+    assert api_users["count"] == user_count + 1
+    for api_user in api_users["data"]:
+        user_id = api_user["id"]
+
+        #
+        if user_id not in users:
+            continue
+        assert api_user == users.pop(user_id)
+    assert len(users) == 0, "Not all created users where returned!"
+
+
+@pytest.mark.parametrize("user_count", (0, 1, 10))
+def test_retrieve_users_as_normal_user(
+    db: Session,
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    create_user: CreateUserProtocol,
+    user_count: int,
+) -> None:
+    for _ in range(user_count):
+        # don't hash password since we don't need to authenticate as the created user
+        create_user(hash_password=False, commit=False)
+    db.commit()
+
+    r = client.get(f"{settings.API_V1_STR}/users/", headers=normal_user_token_headers)
+    assert r.status_code == 403
+    assert r.json() == {"detail": "The user doesn't have enough privileges"}
 
 
 def test_update_user_me(
@@ -173,6 +199,8 @@ def test_update_user_me(
 ) -> None:
     password = random_lower_string()
     user = create_user(password=password)
+    user_pre = user.model_dump(mode="json", exclude={"hashed_password"})
+
     auth_headers = user_authentication_headers(
         client=client, email=user.email, password=password
     )
@@ -187,12 +215,15 @@ def test_update_user_me(
     )
     assert r.status_code == 200
     updated_user = r.json()
-    assert updated_user["email"] == email
-    assert updated_user["full_name"] == full_name
+    assert updated_user == {**user_pre, **data}
 
     db.refresh(user)
-    assert user.email == email
-    assert user.full_name == full_name
+    # test if only modified fields of the user changed
+    assert user.model_dump(mode="json", exclude={"hashed_password"}) == {
+        **user_pre,
+        **data,
+    }
+    assert verify_password(password, user.hashed_password)
 
 
 def test_update_password_me(
@@ -299,13 +330,12 @@ def test_register_user(client: TestClient, db: Session) -> None:
 
 
 def test_register_user_already_exists_error(
-    client: TestClient, create_user: CreateUserProtocol
+    client: TestClient, normal_user: User
 ) -> None:
-    user = create_user()
     password = random_lower_string()
     full_name = random_lower_string()
     data = {
-        "email": user.email,
+        "email": normal_user.email,
         "password": password,
         "full_name": full_name,
     }
